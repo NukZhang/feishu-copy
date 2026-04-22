@@ -1,0 +1,405 @@
+/* Feishu Copy - UI 样式 */
+/* 使用隔离容器，避免 all: initial/unset 破坏 position: fixed */
+#feishu-copy-root {
+  position: static;
+  margin: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #333;
+  pointer-events: none;
+}
+
+#feishu-copy-root * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+#feishu-copy-root button {
+  font-family: inherit;
+  font-size: inherit;
+  line-height: inherit;
+  background: none;
+  border: none;
+  outline: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.fc-fab-container {
+  position: fixed;
+  top: 80px;
+  right: 24px;
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.fc-fab-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: 50% !important;
+  background: #3370ff !important;
+  color: white !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer !important;
+  box-shadow: 0 2px 12px rgba(51, 112, 255, 0.4) !important;
+  transition: all 0.2s ease !important;
+  border: none !important;
+  outline: none !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  line-height: 1 !important;
+}
+
+.fc-fab-btn:hover:not(:disabled) {
+  transform: scale(1.08) !important;
+  box-shadow: 0 4px 16px rgba(51, 112, 255, 0.5) !important;
+}
+
+.fc-fab-btn:disabled {
+  cursor: not-allowed !important;
+  opacity: 0.8 !important;
+}
+
+.fc-fab-scanning {
+  animation: fc-pulse 1.5s infinite !important;
+}
+
+@keyframes fc-pulse {
+  0%, 100% { box-shadow: 0 2px 12px rgba(51, 112, 255, 0.4) !important; }
+  50% { box-shadow: 0 2px 20px rgba(51, 112, 255, 0.7) !important; }
+}
+
+.fc-fab-done {
+  background: #4caf50 !important;
+  box-shadow: 0 2px 12px rgba(76, 175, 80, 0.4) !important;
+}
+
+.fc-fab-error {
+  background: #f44336 !important;
+  box-shadow: 0 2px 12px rgba(244, 67, 54, 0.4) !important;
+}
+
+.fc-fab-processing {
+  background: #ff9800 !important;
+  box-shadow: 0 2px 12px rgba(255, 152, 0, 0.4) !important;
+}
+
+.fc-menu {
+  display: none;
+  flex-direction: column;
+  background: white !important;
+  border-radius: 8px !important;
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12) !important;
+  padding: 4px 0 !important;
+  min-width: 200px;
+  overflow: hidden;
+}
+
+.fc-menu-open {
+  display: flex !important;
+}
+
+.fc-menu-item {
+  display: flex !important;
+  align-items: center !important;
+  gap: 10px;
+  padding: 10px 16px !important;
+  cursor: pointer !important;
+  color: #333 !important;
+  font-size: 14px !important;
+  transition: background 0.15s !important;
+  border: none !important;
+  background: transparent !important;
+  outline: none !important;
+  width: 100% !important;
+  text-align: left !important;
+  line-height: 1.4 !important;
+  white-space: nowrap !important;
+}
+
+.fc-menu-item:hover {
+  background: #f5f5f5 !important;
+}
+
+.fc-menu-item svg {
+  flex-shrink: 0;
+  color: #666;
+}
+
+.fc-progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: white !important;
+  border-radius: 20px !important;
+  padding: 6px 12px !important;
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1) !important;
+  min-width: 140px;
+  height: 32px;
+}
+
+.fc-progress-bar {
+  flex: 1;
+  height: 4px !important;
+  background: #e0e0e0 !important;
+  border-radius: 2px !important;
+  overflow: hidden;
+}
+
+.fc-progress-bar > .fc-progress-fill {
+  height: 100%;
+  background: #3370ff;
+  border-radius: 2px;
+  transition: width 0.3s ease;
+  width: 0%;
+}
+
+.fc-progress-text {
+  font-size: 12px !important;
+  color: #666 !important;
+  min-width: 30px;
+  text-align: right;
+}
+
+/* ===== 文件夹选择器 ===== */
+#fc-folder-picker-root {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 14px;
+  line-height: 1.4;
+  color: #333;
+}
+
+#fc-folder-picker-root * {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.fc-fp-mask {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.35);
+  z-index: 2147483646;
+}
+
+.fc-fp-dialog {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 480px;
+  max-height: 80vh;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 8px 40px rgba(0, 0, 0, 0.18);
+  z-index: 2147483647;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.fc-fp-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid #eee;
+}
+
+.fc-fp-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: #1f2329;
+}
+
+.fc-fp-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  font-size: 20px;
+  color: #8f959e;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.fc-fp-close:hover {
+  background: #f5f5f5;
+  color: #333;
+}
+
+.fc-fp-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 20px;
+  border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+  color: #646a73;
+  overflow-x: auto;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.fc-fp-crumb {
+  cursor: pointer;
+  color: #3370ff;
+}
+
+.fc-fp-crumb:hover {
+  text-decoration: underline;
+}
+
+.fc-fp-sep {
+  color: #c0c0c0;
+  margin: 0 2px;
+}
+
+.fc-fp-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 0;
+  min-height: 200px;
+  max-height: 400px;
+}
+
+.fc-fp-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 20px;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.fc-fp-item:hover {
+  background: #f5f7fa;
+}
+
+.fc-fp-item-icon {
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+.fc-fp-item-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  color: #1f2329;
+}
+
+.fc-fp-item-arrow {
+  color: #c0c0c0;
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.fc-fp-loading,
+.fc-fp-empty,
+.fc-fp-error {
+  text-align: center;
+  padding: 40px 20px;
+  color: #8f959e;
+  font-size: 14px;
+}
+
+.fc-fp-error {
+  color: #f44336;
+}
+
+.fc-fp-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 16px 20px;
+  border-top: 1px solid #eee;
+  flex-shrink: 0;
+}
+
+.fc-fp-btn {
+  padding: 8px 20px;
+  border-radius: 6px;
+  font-size: 14px;
+  cursor: pointer;
+  border: 1px solid #ddd;
+  background: #fff;
+  color: #333;
+  transition: all 0.15s;
+}
+
+.fc-fp-btn:hover {
+  background: #f5f5f5;
+}
+
+.fc-fp-btn-confirm {
+  background: #3370ff;
+  color: #fff;
+  border-color: #3370ff;
+}
+
+.fc-fp-btn-confirm:hover {
+  background: #2860e0;
+  border-color: #2860e0;
+}
+
+/* 手动输入区 */
+.fc-fp-manual {
+  border-top: 1px solid #f0f0f0;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.fc-fp-manual-toggle {
+  padding: 10px 20px;
+  font-size: 13px;
+  color: #3370ff;
+  cursor: pointer;
+  user-select: none;
+}
+
+.fc-fp-manual-toggle:hover {
+  background: #f5f7fa;
+}
+
+.fc-fp-manual-input {
+  display: flex;
+  gap: 8px;
+  padding: 0 20px 12px;
+}
+
+.fc-fp-manual-input input {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 6px;
+  font-size: 13px;
+  outline: none;
+}
+
+.fc-fp-manual-input input:focus {
+  border-color: #3370ff;
+}
+
+.fc-fp-manual-input .fc-fp-btn {
+  padding: 8px 16px;
+  white-space: nowrap;
+}

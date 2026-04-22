@@ -1,0 +1,62 @@
+{
+  "manifest_version": 3,
+  "name": "Feishu Copy",
+  "version": "1.0.0",
+  "description": "复制飞书文档内容，导出为 Markdown 或创建新飞书文档",
+  "permissions": [
+    "activeTab",
+    "storage",
+    "downloads",
+    "scripting",
+    "tabs"
+  ],
+  "host_permissions": [
+    "https://*.feishu.cn/*",
+    "https://open.feishu.cn/*"
+  ],
+  "background": {
+    "service_worker": "background/service-worker.js"
+  },
+  "content_scripts": [
+    {
+      "matches": [
+        "https://*.feishu.cn/docx/*",
+        "https://*.feishu.cn/wiki/*",
+        "https://*.feishu.cn/docs/*"
+      ],
+      "css": ["content/ui.css"],
+      "js": [
+        "shared/constants.js",
+        "content/utils.js",
+        "content/canvas-hook.js",
+        "content/table-parser.js",
+        "content/list-renderer.js",
+        "content/converter.js",
+        "content/extractor.js",
+        "content/session-api.js",
+        "content/folder-picker.js",
+        "content/ui.js",
+        "content/content.js"
+      ],
+      "run_at": "document_start"
+    }
+  ],
+  "options_ui": {
+    "page": "options/options.html",
+    "open_in_tab": true
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Feishu Copy",
+    "default_icon": {
+      "16": "assets/icons/icon16.png",
+      "48": "assets/icons/icon48.png",
+      "128": "assets/icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "assets/icons/icon16.png",
+    "48": "assets/icons/icon48.png",
+    "128": "assets/icons/icon128.png"
+  }
+}
