@@ -12,7 +12,8 @@
   ],
   "host_permissions": [
     "https://*.feishu.cn/*",
-    "https://open.feishu.cn/*"
+    "https://open.feishu.cn/*",
+    "https://internal-api-drive-stream.feishu.cn/*"
   ],
   "background": {
     "service_worker": "background/service-worker.js"

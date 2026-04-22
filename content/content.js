@@ -342,149 +342,7 @@ window.FeishuCopy = window.FeishuCopy || {};
   // ========== 7. 转存到飞书云盘 ==========
 
   /**
-   * DocBlock[] → 飞书 API Block[]
-   */
-  function convertToApiBlocks(docBlocks) {
-    const result = [];
-    for (const block of docBlocks) {
-      const apiBlock = docBlockToApiBlock(block);
-      if (apiBlock) result.push(apiBlock);
-    }
-    return result;
-  }
-
-  function textRunsToApiElements(textRuns) {
-    if (!textRuns || textRuns.length === 0) {
-      return [{ text_run: { content: '' } }];
-    }
-    return textRuns
-      .filter(run => run.content)
-      .map(run => {
-        const element = { text_run: { content: run.content } };
-        const style = {};
-        if (run.bold) style.bold = true;
-        if (run.italic) style.italic = true;
-        if (run.strikethrough) style.strikethrough = true;
-        if (run.code) style.inline_code = true;
-        if (run.underline) style.underline = true;
-        if (run.link) style.link = { url: run.link };
-        if (run.color) style.text_color = run.color;
-        if (run.bgColor) style.background_color = run.bgColor;
-        if (Object.keys(style).length) {
-          element.text_run.text_element_style = style;
-        }
-        return element;
-      });
-  }
-
-  function docBlockToApiBlock(block) {
-    switch (block.type) {
-      case 'heading1': case 'heading2': case 'heading3':
-      case 'heading4': case 'heading5': {
-        const level = block.headingLevel || 1;
-        const blockType = level + 2;
-        const key = `heading${level}`;
-        return {
-          block_type: blockType,
-          [key]: { elements: textRunsToApiElements(block.textRuns) }
-        };
-      }
-      case 'text':
-        return {
-          block_type: 2,
-          text: { elements: textRunsToApiElements(block.textRuns) }
-        };
-      case 'code':
-        return {
-          block_type: 14,
-          code: {
-            language: block.language || 'PlainText',
-            elements: [{ text_run: { content: block.code || '' } }]
-          }
-        };
-      case 'bullet':
-        return {
-          block_type: 13,
-          bullet: { elements: textRunsToApiElements(block.textRuns) }
-        };
-      case 'ordered':
-        return {
-          block_type: 12,
-          ordered: { elements: textRunsToApiElements(block.textRuns) }
-        };
-      case 'todoList':
-        return {
-          block_type: 17,
-          todo: {
-            elements: textRunsToApiElements(block.textRuns),
-            style: { checked: block.checked || false }
-          }
-        };
-      case 'quote':
-        return {
-          block_type: 15,
-          quote: { elements: textRunsToApiElements(block.textRuns) }
-        };
-      case 'divider':
-        return { block_type: 22, divider: {} };
-      case 'image':
-        return {
-          block_type: 2,
-          text: { elements: [{ text_run: { content: `[图片: ${block.alt || block.src}]` } }] }
-        };
-      case 'diagram':
-        return {
-          block_type: 2,
-          text: { elements: [{ text_run: { content: '[流程图/图表]' } }] }
-        };
-      case 'iframe':
-        return {
-          block_type: 2,
-          text: { elements: [{ text_run: { content: block.src ? `[嵌入内容](${block.src})` : '[嵌入内容]' } }] }
-        };
-      case 'table':
-        return tableToApiBlock(block);
-      default:
-        if (block.textRuns && block.textRuns.length > 0) {
-          return {
-            block_type: 2,
-            text: { elements: textRunsToApiElements(block.textRuns) }
-          };
-        }
-        return null;
-    }
-  }
-
-  function tableToApiBlock(block) {
-    const rows = block.rows;
-    if (!rows || rows.length === 0) return null;
-    const rowCount = rows.length;
-    const colCount = Math.max(...rows.map(r => r.length));
-    const cells = [];
-    for (let i = 0; i < rowCount; i++) {
-      for (let j = 0; j < colCount; j++) {
-        cells.push({
-          row: i, column: j,
-          cell: {
-            block_type: 2,
-            text: { elements: [{ text_run: { content: (rows[i] && rows[i][j]) || '' } }] }
-          }
-        });
-      }
-    }
-    return {
-      block_type: 22,
-      table: {
-        table_size: { row_size: rowCount, column_size: colCount },
-        column_attr: Array(colCount).fill({}),
-        row_attr: Array(rowCount).fill({}),
-        cells
-      }
-    };
-  }
-
-  /**
-   * 创建飞书文档：优先 SessionAPI，失败降级剪贴板
+   * 转存到飞书云盘：上传 Markdown 文件 → 导入为飞书文档
    */
   async function createFeishuDoc(docBlocks, title, safeUI) {
     const { SessionAPI, FolderPicker } = window.FeishuCopy;
@@ -512,20 +370,18 @@ window.FeishuCopy = window.FeishuCopy || {};
         safeUI('PROCESSING');
       }
 
-      console.log('[FeishuCopy] 使用 SessionAPI 创建文档:', title);
-      const doc = await SessionAPI.createDocument(title, folderToken);
-      console.log('[FeishuCopy] 文档创建成功:', doc.url);
+      // 生成 Markdown 内容
+      const markdown = Converter.toMarkdown(docBlocks, title);
+      const filename = `${Utils.safeFilename(title) || 'feishu-doc'}.md`;
 
-      const apiBlocks = convertToApiBlocks(docBlocks);
-      if (apiBlocks.length > 0) {
-        await SessionAPI.createBlocks(doc.document_id, doc.document_id, apiBlocks);
-      }
+      console.log('[FeishuCopy] 上传并导入文档:', filename);
+      const doc = await SessionAPI.uploadAndImport(markdown, filename, folderToken, 'md');
+      console.log('[FeishuCopy] 转存成功:', doc.url);
 
-      console.log('[FeishuCopy] 内容写入完成，共', apiBlocks.length, '个块');
       window.open(doc.url, '_blank');
       safeUI('DONE', { message: '文档已转存' });
     } catch (err) {
-      console.warn('[FeishuCopy] SessionAPI 创建失败，降级剪贴板:', err.message);
+      console.warn('[FeishuCopy] 上传导入失败，降级剪贴板:', err.message);
       return createFeishuDocClipboard(docBlocks, title, safeUI);
     }
   }
