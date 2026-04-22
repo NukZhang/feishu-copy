@@ -5,21 +5,36 @@
   <title>Feishu Copy</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { width: 220px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 16px; }
+    body { width: 280px; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; padding: 16px; }
     .logo { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
     .logo-icon { width: 28px; height: 28px; background: #3370ff; border-radius: 6px; display: flex; align-items: center; justify-content: center; color: white; font-size: 14px; font-weight: bold; }
     .logo-text { font-size: 14px; font-weight: 600; }
     .status { font-size: 12px; color: #888; margin-bottom: 12px; padding: 8px; background: #f5f7fa; border-radius: 6px; }
     .status.on-doc { color: #4caf50; background: #e8f5e9; }
     .status.error { color: #f44336; background: #ffebee; }
-    .btn { display: block; width: 100%; padding: 8px 12px; border: none; border-radius: 6px; cursor: pointer; font-size: 13px; margin-bottom: 8px; text-align: center; }
-    .btn-primary { background: #3370ff; color: white; }
-    .btn-primary:hover { background: #2860e0; }
-    .btn-secondary { background: #f0f0f0; color: #333; }
-    .btn-secondary:hover { background: #e0e0e0; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
-    .hint { font-size: 11px; color: #999; margin-top: 8px; line-height: 1.4; }
-    .divider { height: 1px; background: #eee; margin: 10px 0; }
+    .actions { display: flex; flex-direction: column; gap: 2px; }
+    .action-btn {
+      display: flex; align-items: center; gap: 10px;
+      width: 100%; padding: 10px 12px; border: none; border-radius: 6px;
+      cursor: pointer; font-size: 13px; text-align: left;
+      background: transparent; color: #1f2329; transition: background 0.15s;
+    }
+    .action-btn:hover { background: #f5f7fa; }
+    .action-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .action-btn:disabled:hover { background: transparent; }
+    .action-btn svg { flex-shrink: 0; color: #646a73; }
+    .action-btn .label { flex: 1; }
+    .action-btn .arrow { color: #c0c4cc; }
+    .action-btn.loading .label { color: #999; }
+    .action-btn.success .label { color: #4caf50; }
+    .divider { height: 1px; background: #eee; margin: 8px 0; }
+    .footer { margin-top: 8px; }
+    .settings-btn {
+      display: block; width: 100%; padding: 8px 12px; border: none; border-radius: 6px;
+      cursor: pointer; font-size: 12px; text-align: center;
+      background: #f0f0f0; color: #666; transition: background 0.15s;
+    }
+    .settings-btn:hover { background: #e0e0e0; }
   </style>
 </head>
 <body>
@@ -28,11 +43,10 @@
     <span class="logo-text">Feishu Copy</span>
   </div>
   <div id="status" class="status">正在检测...</div>
-  <button class="btn btn-primary" id="btn-md">导出 Markdown</button>
-  <button class="btn btn-secondary" id="btn-doc" disabled>转存为飞书文档</button>
-  <div class="divider"></div>
-  <button class="btn btn-secondary" id="btn-settings">设置</button>
-  <div class="hint" id="hint"></div>
+  <div class="actions" id="actions"></div>
+  <div class="footer">
+    <button class="settings-btn" id="btn-settings">设置</button>
+  </div>
   <script src="popup.js"></script>
 </body>
 </html>

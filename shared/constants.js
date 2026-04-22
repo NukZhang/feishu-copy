@@ -72,6 +72,11 @@ window.FeishuCopy.Constants = {
   MSG: {
     EXPORT_MARKDOWN: 'EXPORT_MARKDOWN',
     CREATE_FEISHU_DOC: 'CREATE_FEISHU_DOC',
+    EXPORT_HTML: 'EXPORT_HTML',
+    EXPORT_HTML_MIGRATION: 'EXPORT_HTML_MIGRATION',
+    EXPORT_WORD: 'EXPORT_WORD',
+    EXPORT_PDF: 'EXPORT_PDF',
+    EXPORT_ATTACHMENTS: 'EXPORT_ATTACHMENTS',
     GET_SETTINGS: 'GET_SETTINGS',
     SAVE_SETTINGS: 'SAVE_SETTINGS',
     TEST_CONNECTION: 'TEST_CONNECTION',
@@ -79,6 +84,17 @@ window.FeishuCopy.Constants = {
     EXTRACTION_COMPLETE: 'EXTRACTION_COMPLETE',
     EXTRACTION_ERROR: 'EXTRACTION_ERROR'
   },
+
+  // 导出 action 类型
+  ACTIONS: [
+    { id: 'exportMarkdown', label: '导出 Markdown', icon: 'markdown' },
+    { id: 'downloadHtml', label: '下载 HTML', icon: 'html' },
+    { id: 'exportHtmlMigration', label: '导出 HTML（转存）', icon: 'htmlMigration' },
+    { id: 'exportWord', label: '导出 Word', icon: 'word' },
+    { id: 'exportPdf', label: '导出 PDF', icon: 'pdf' },
+    { id: 'exportAttachments', label: '导出全部附件', icon: 'attachment' },
+    { id: 'copyDoc', label: '转存到飞书云盘', icon: 'feishu' }
+  ],
 
   // UI 状态
   UI_STATE: {

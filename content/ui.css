@@ -1,5 +1,4 @@
 /* Feishu Copy - UI 样式 */
-/* 使用隔离容器，避免 all: initial/unset 破坏 position: fixed */
 #feishu-copy-root {
   position: static;
   margin: 0;
@@ -30,6 +29,7 @@
   appearance: none;
 }
 
+/* ===== 浮动按钮 ===== */
 .fc-fab-container {
   position: fixed;
   top: 80px;
@@ -95,19 +95,30 @@
   box-shadow: 0 2px 12px rgba(255, 152, 0, 0.4) !important;
 }
 
+/* ===== 菜单面板 ===== */
 .fc-menu {
   display: none;
   flex-direction: column;
   background: white !important;
-  border-radius: 8px !important;
+  border-radius: 12px !important;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12) !important;
-  padding: 4px 0 !important;
-  min-width: 200px;
+  min-width: 240px;
+  max-height: 420px;
   overflow: hidden;
+  padding-bottom: 4px !important;
 }
 
 .fc-menu-open {
   display: flex !important;
+}
+
+.fc-menu-header {
+  font-size: 13px;
+  font-weight: 600;
+  color: #8f959e;
+  padding: 12px 16px 8px;
+  border-bottom: 1px solid #f0f0f0;
+  user-select: none;
 }
 
 .fc-menu-item {
@@ -116,7 +127,7 @@
   gap: 10px;
   padding: 10px 16px !important;
   cursor: pointer !important;
-  color: #333 !important;
+  color: #1f2329 !important;
   font-size: 14px !important;
   transition: background 0.15s !important;
   border: none !important;
@@ -129,14 +140,42 @@
 }
 
 .fc-menu-item:hover {
-  background: #f5f5f5 !important;
+  background: #f5f7fa !important;
 }
 
-.fc-menu-item svg {
+.fc-menu-item:disabled {
+  opacity: 0.5;
+  cursor: not-allowed !important;
+}
+
+.fc-menu-item:disabled:hover {
+  background: transparent !important;
+}
+
+.fc-menu-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
   flex-shrink: 0;
-  color: #666;
+  color: #646a73;
 }
 
+.fc-menu-label {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.fc-menu-arrow {
+  display: flex;
+  align-items: center;
+  color: #c0c4cc;
+  flex-shrink: 0;
+}
+
+/* ===== 进度条 ===== */
 .fc-progress {
   display: flex;
   align-items: center;
@@ -170,6 +209,38 @@
   color: #666 !important;
   min-width: 30px;
   text-align: right;
+}
+
+/* ===== Toast 提示 ===== */
+.fc-toast {
+  background: #1f2329;
+  color: #fff;
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  max-width: 200px;
+  text-align: center;
+  animation: fc-toast-in 0.3s ease;
+}
+
+.fc-toast-error {
+  background: #f44336;
+}
+
+@keyframes fc-toast-in {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* ===== Spinner 旋转 ===== */
+.fc-spin {
+  animation: fc-spin-anim 1s linear infinite;
+}
+
+@keyframes fc-spin-anim {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
 }
 
 /* ===== 文件夹选择器 ===== */

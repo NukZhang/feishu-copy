@@ -1,6 +1,6 @@
 /**
  * Feishu Copy - 内容脚本编排器
- * 负责：复制保护绕过、水印移除、SPA 路由监听、流程编排
+ * 负责：复制保护绕过、水印移除、SPA 路由监听、7 项导出流程编排
  */
 window.FeishuCopy = window.FeishuCopy || {};
 
@@ -146,9 +146,10 @@ window.FeishuCopy = window.FeishuCopy || {};
     }, 600);
   }
 
+  // ========== 核心流程：提取 → 各格式导出 ==========
+
   /**
    * 处理用户操作
-   * @returns {Promise<{url?: string}>}
    */
   async function handleAction(action) {
     const safeUI = (state, data) => { try { UI.setState(state, data); } catch(e) {} };
@@ -162,38 +163,183 @@ window.FeishuCopy = window.FeishuCopy || {};
 
       const title = Utils.getDocTitle();
 
-      if (action === 'exportMarkdown') {
-        safeUI('PROCESSING');
-        const markdown = Converter.toMarkdown(docBlocks, title);
-        const filename = `${Utils.safeFilename(title) || 'feishu-doc'}_${new Date().toISOString().slice(0, 10)}.md`;
-        console.log('[FeishuCopy] 导出 Markdown, 大小:', markdown.length, '字符');
-        try {
-          downloadBlob(markdown, filename, 'text/markdown;charset=utf-8');
-          safeUI('DONE');
-        } catch (e) {
-          console.warn('[FeishuCopy] Blob 下载失败，尝试 background 下载:', e.message);
-          chrome.runtime.sendMessage({
-            type: Constants.MSG.EXPORT_MARKDOWN,
-            data: { markdown, title: Utils.safeFilename(title), timestamp: Date.now() }
-          }, (response) => {
-            if (response && response.success) {
-              safeUI('DONE');
-            } else {
-              safeUI('ERROR', { message: response?.error || '下载失败' });
-            }
-          });
-        }
-      } else if (action === 'copyDoc') {
-        safeUI('PROCESSING');
-        const url = await createFeishuDoc(docBlocks, title, safeUI);
-        return { url };
+      switch (action) {
+        case 'exportMarkdown':
+          await exportMarkdown(docBlocks, title, safeUI);
+          break;
+        case 'downloadHtml':
+          await exportHtml(docBlocks, title, safeUI);
+          break;
+        case 'exportHtmlMigration':
+          await exportHtmlMigration(docBlocks, title, safeUI);
+          break;
+        case 'exportWord':
+          await exportWord(docBlocks, title, safeUI);
+          break;
+        case 'exportPdf':
+          await exportPdf(docBlocks, title, safeUI);
+          break;
+        case 'exportAttachments':
+          await exportAttachments(docBlocks, title, safeUI);
+          break;
+        case 'copyDoc':
+          await createFeishuDoc(docBlocks, title, safeUI);
+          break;
+        default:
+          safeUI('ERROR', { message: '未知操作' });
       }
     } catch (err) {
       console.error('[FeishuCopy] 操作失败:', err);
       safeUI('ERROR', { message: err.message });
     }
-    return {};
   }
+
+  // ========== 1. 导出 Markdown ==========
+
+  async function exportMarkdown(docBlocks, title, safeUI) {
+    safeUI('PROCESSING');
+    const markdown = Converter.toMarkdown(docBlocks, title);
+    const filename = `${Utils.safeFilename(title) || 'feishu-doc'}_${new Date().toISOString().slice(0, 10)}.md`;
+    console.log('[FeishuCopy] 导出 Markdown, 大小:', markdown.length, '字符');
+    try {
+      downloadBlob(markdown, filename, 'text/markdown;charset=utf-8');
+      safeUI('DONE', { message: 'Markdown 已下载' });
+    } catch (e) {
+      console.warn('[FeishuCopy] Blob 下载失败，尝试 background 下载:', e.message);
+      chrome.runtime.sendMessage({
+        type: Constants.MSG.EXPORT_MARKDOWN,
+        data: { markdown, title: Utils.safeFilename(title), timestamp: Date.now() }
+      }, (response) => {
+        if (response && response.success) {
+          safeUI('DONE', { message: 'Markdown 已下载' });
+        } else {
+          safeUI('ERROR', { message: response?.error || '下载失败' });
+        }
+      });
+    }
+  }
+
+  // ========== 2. 下载 HTML ==========
+
+  async function exportHtml(docBlocks, title, safeUI) {
+    safeUI('PROCESSING');
+    const bodyHtml = docBlocksToHTML(docBlocks, title);
+    const fullHtml = wrapHtmlDocument(bodyHtml, title);
+    const filename = `${Utils.safeFilename(title) || 'feishu-doc'}_${new Date().toISOString().slice(0, 10)}.html`;
+    downloadBlob(fullHtml, filename, 'text/html;charset=utf-8');
+    console.log('[FeishuCopy] HTML 已导出, 大小:', fullHtml.length);
+    safeUI('DONE', { message: 'HTML 已下载' });
+  }
+
+  // ========== 3. 导出 HTML（for 转存） ==========
+
+  async function exportHtmlMigration(docBlocks, title, safeUI) {
+    safeUI('PROCESSING');
+    const bodyHtml = docBlocksToHTML(docBlocks, title, true);
+    const fullHtml = wrapHtmlDocument(bodyHtml, title, true);
+    const filename = `${Utils.safeFilename(title) || 'feishu-doc'}_migration_${new Date().toISOString().slice(0, 10)}.html`;
+    downloadBlob(fullHtml, filename, 'text/html;charset=utf-8');
+    console.log('[FeishuCopy] HTML(转存) 已导出, 大小:', fullHtml.length);
+    safeUI('DONE', { message: 'HTML (转存版) 已下载' });
+  }
+
+  // ========== 4. 导出 Word ==========
+
+  async function exportWord(docBlocks, title, safeUI) {
+    safeUI('PROCESSING');
+    const bodyHtml = docBlocksToHTML(docBlocks, title, true);
+    const wordHtml = wrapWordDocument(bodyHtml, title);
+    const filename = `${Utils.safeFilename(title) || 'feishu-doc'}_${new Date().toISOString().slice(0, 10)}.doc`;
+    downloadBlob(wordHtml, filename, 'application/msword');
+    console.log('[FeishuCopy] Word 已导出, 大小:', wordHtml.length);
+    safeUI('DONE', { message: 'Word 已下载' });
+  }
+
+  // ========== 5. 导出 PDF ==========
+
+  async function exportPdf(docBlocks, title, safeUI) {
+    safeUI('PROCESSING');
+    const bodyHtml = docBlocksToHTML(docBlocks, title);
+    const fullHtml = wrapHtmlDocument(bodyHtml, title);
+
+    const iframe = document.createElement('iframe');
+    iframe.style.cssText = 'position:fixed;left:-9999px;top:-9999px;width:800px;height:600px;border:none;';
+    document.body.appendChild(iframe);
+
+    iframe.onload = () => {
+      try {
+        iframe.contentWindow.print();
+        safeUI('DONE', { message: '请在打印对话框中选择"另存为 PDF"' });
+      } catch (e) {
+        safeUI('ERROR', { message: '打印失败: ' + e.message });
+      }
+      setTimeout(() => {
+        if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
+      }, 5000);
+    };
+
+    iframe.srcdoc = fullHtml;
+  }
+
+  // ========== 6. 导出全部附件 ==========
+
+  async function exportAttachments(docBlocks, title, safeUI) {
+    safeUI('PROCESSING');
+    const attachments = [];
+    let imgIdx = 0, chartIdx = 0;
+
+    for (const block of docBlocks) {
+      if (block.type === 'image') {
+        const src = block.base64 || block.src;
+        if (src) {
+          imgIdx++;
+          const ext = src.startsWith('data:image/png') ? 'png'
+            : src.startsWith('data:image/jpeg') || src.startsWith('data:image/jpg') ? 'jpg'
+            : src.startsWith('data:image/svg') ? 'svg'
+            : src.startsWith('data:image/webp') ? 'webp'
+            : 'png';
+          attachments.push({
+            url: src,
+            filename: `图片_${String(imgIdx).padStart(3, '0')}${block.alt ? '_' + Utils.safeFilename(block.alt).substring(0, 30) : ''}.${ext}`
+          });
+        }
+      } else if (block.type === 'diagram') {
+        if (block.base64) {
+          chartIdx++;
+          attachments.push({
+            url: block.base64,
+            filename: `图表_${String(chartIdx).padStart(3, '0')}.png`
+          });
+        }
+      }
+    }
+
+    if (attachments.length === 0) {
+      safeUI('DONE', { message: '文档中没有可导出的附件' });
+      return;
+    }
+
+    console.log('[FeishuCopy] 导出附件:', attachments.length, '个');
+    // 通过 background 逐个下载
+    chrome.runtime.sendMessage({
+      type: Constants.MSG.EXPORT_ATTACHMENTS,
+      data: { attachments, title: Utils.safeFilename(title) || 'feishu-doc' }
+    }, (response) => {
+      if (response && response.success) {
+        safeUI('DONE', { message: `已导出 ${attachments.length} 个附件` });
+      } else {
+        // 降级：直接用 content script 下载
+        let delay = 0;
+        for (const att of attachments) {
+          setTimeout(() => downloadBlob('', att.filename, '', att.url), delay);
+          delay += 300;
+        }
+        safeUI('DONE', { message: `已导出 ${attachments.length} 个附件` });
+      }
+    });
+  }
+
+  // ========== 7. 转存到飞书云盘 ==========
 
   /**
    * DocBlock[] → 飞书 API Block[]
@@ -282,13 +428,11 @@ window.FeishuCopy = window.FeishuCopy || {};
       case 'divider':
         return { block_type: 22, divider: {} };
       case 'image':
-        // 图片降级为文本描述
         return {
           block_type: 2,
           text: { elements: [{ text_run: { content: `[图片: ${block.alt || block.src}]` } }] }
         };
       case 'diagram':
-        // 图表降级为文本描述
         return {
           block_type: 2,
           text: { elements: [{ text_run: { content: '[流程图/图表]' } }] }
@@ -341,19 +485,16 @@ window.FeishuCopy = window.FeishuCopy || {};
 
   /**
    * 创建飞书文档：优先 SessionAPI，失败降级剪贴板
-   * @returns {Promise<string|undefined>} 新文档 URL
    */
   async function createFeishuDoc(docBlocks, title, safeUI) {
     const { SessionAPI, FolderPicker } = window.FeishuCopy;
 
-    // 检查登录态
     if (!SessionAPI.isLoggedIn()) {
       console.warn('[FeishuCopy] 未检测到登录态，使用剪贴板方式');
       return createFeishuDocClipboard(docBlocks, title, safeUI);
     }
 
     try {
-      // 1. 选择文件夹
       const settings = await new Promise(resolve => {
         chrome.storage.sync.get(['folder_token', 'skip_folder_picker'], resolve);
       });
@@ -362,23 +503,19 @@ window.FeishuCopy = window.FeishuCopy || {};
       if (settings.skip_folder_picker && settings.folder_token) {
         folderToken = settings.folder_token;
       } else {
-        // 恢复 UI 让用户可以操作选择器
         safeUI('IDLE');
         folderToken = await FolderPicker.open(settings.folder_token);
         if (folderToken === null) {
-          // 用户取消
           console.log('[FeishuCopy] 用户取消了文件夹选择');
           return;
         }
         safeUI('PROCESSING');
       }
 
-      // 2. 创建文档
       console.log('[FeishuCopy] 使用 SessionAPI 创建文档:', title);
       const doc = await SessionAPI.createDocument(title, folderToken);
       console.log('[FeishuCopy] 文档创建成功:', doc.url);
 
-      // 3. 转换并写入内容
       const apiBlocks = convertToApiBlocks(docBlocks);
       if (apiBlocks.length > 0) {
         await SessionAPI.createBlocks(doc.document_id, doc.document_id, apiBlocks);
@@ -386,9 +523,7 @@ window.FeishuCopy = window.FeishuCopy || {};
 
       console.log('[FeishuCopy] 内容写入完成，共', apiBlocks.length, '个块');
       window.open(doc.url, '_blank');
-      safeUI('DONE');
-      return doc.url;
-
+      safeUI('DONE', { message: '文档已转存' });
     } catch (err) {
       console.warn('[FeishuCopy] SessionAPI 创建失败，降级剪贴板:', err.message);
       return createFeishuDocClipboard(docBlocks, title, safeUI);
@@ -405,24 +540,26 @@ window.FeishuCopy = window.FeishuCopy || {};
       await copyHTMLToClipboard(html, title);
       const newDocUrl = `https://${location.host}/docx/`;
       window.open(newDocUrl, '_blank');
-      safeUI('DONE');
-      console.log('[FeishuCopy] 内容已复制到剪贴板，请在打开的新文档中按 Ctrl+V / Cmd+V 粘贴');
+      safeUI('DONE', { message: '已复制到剪贴板，请粘贴到新文档' });
     } catch (e) {
       console.error('[FeishuCopy] 剪贴板方式失败:', e.message);
       safeUI('ERROR', { message: '复制失败: ' + e.message });
     }
   }
 
+  // ========== HTML 生成工具 ==========
+
   /**
-   * DocBlock[] → HTML 字符串（用于剪贴板粘贴，保留原始格式）
+   * DocBlock[] → HTML 字符串
+   * @param {boolean} forMigration - 是否为转存模式（内联图片、通用样式）
    */
-  function docBlocksToHTML(blocks, title) {
+  function docBlocksToHTML(blocks, title, forMigration = false) {
     const parts = [];
     if (title) {
       parts.push(`<h1>${escapeHTML(title)}</h1>`);
     }
     for (const block of blocks) {
-      const html = blockToHTML(block);
+      const html = blockToHTML(block, forMigration);
       if (html) parts.push(html);
     }
     return parts.join('\n');
@@ -433,7 +570,7 @@ window.FeishuCopy = window.FeishuCopy || {};
   }
 
   /**
-   * TextRun[] → HTML 富文本（支持颜色、下划线、高亮）
+   * TextRun[] → HTML 富文本
    */
   function textRunsToHTML(textRuns) {
     if (!textRuns || textRuns.length === 0) return '';
@@ -441,7 +578,6 @@ window.FeishuCopy = window.FeishuCopy || {};
       let text = escapeHTML(run.content || '');
       if (!text) return text;
 
-      // 嵌套样式 - 从内到外包裹
       if (run.link) text = `<a href="${escapeHTML(run.link)}">${text}</a>`;
       if (run.code) text = `<code>${text}</code>`;
       if (run.strikethrough) text = `<del>${text}</del>`;
@@ -449,7 +585,6 @@ window.FeishuCopy = window.FeishuCopy || {};
       if (run.italic) text = `<em>${text}</em>`;
       if (run.bold) text = `<strong>${text}</strong>`;
 
-      // 颜色和高亮需要用 span 包裹
       const spanStyles = [];
       if (run.color) spanStyles.push(`color:${run.color}`);
       if (run.bgColor) spanStyles.push(`background-color:${run.bgColor}`);
@@ -462,9 +597,9 @@ window.FeishuCopy = window.FeishuCopy || {};
   }
 
   /**
-   * 单个 DocBlock → HTML（保留原始文档格式）
+   * 单个 DocBlock → HTML
    */
-  function blockToHTML(block) {
+  function blockToHTML(block, forMigration = false) {
     switch (block.type) {
       case 'heading1': case 'heading2': case 'heading3':
       case 'heading4': case 'heading5': {
@@ -491,20 +626,19 @@ window.FeishuCopy = window.FeishuCopy || {};
       case 'divider':
         return '<hr>';
       case 'image': {
-        const src = block.base64 || block.src;
+        const src = forMigration ? (block.base64 || block.src) : (block.src || block.base64);
         if (!src) return '';
-        let html = `<img src="${escapeHTML(src)}" alt="${escapeHTML(block.alt || '')}">`;
+        let html = `<img src="${escapeHTML(src)}" alt="${escapeHTML(block.alt || '')}" style="max-width:100%;">`;
         if (block.caption) {
           html = `<figure>${html}<figcaption>${escapeHTML(block.caption)}</figcaption></figure>`;
         }
         return html;
       }
       case 'diagram': {
-        // 优先用 base64 截图，其次用 SVG 内联
         if (block.base64) {
-          return `<img src="${block.base64}" alt="流程图/图表">`;
+          return `<img src="${block.base64}" alt="流程图/图表" style="max-width:100%;">`;
         }
-        if (block.svgHtml) {
+        if (block.svgHtml && !forMigration) {
           return `<div style="text-align:center">${block.svgHtml}</div>`;
         }
         return '<p><em>[流程图/图表]</em></p>';
@@ -519,7 +653,7 @@ window.FeishuCopy = window.FeishuCopy || {};
           const cells = row.map(cell => `<td>${escapeHTML(cell || '')}</td>`).join('');
           return `<tr>${cells}</tr>`;
         }).join('\n');
-        return `<table border="1">${rows}</table>`;
+        return `<table border="1" style="border-collapse:collapse;">${rows}</table>`;
       }
       default: {
         const text = textRunsToHTML(block.textRuns);
@@ -528,8 +662,87 @@ window.FeishuCopy = window.FeishuCopy || {};
     }
   }
 
+  // ========== HTML 文档包装器 ==========
+
   /**
-   * 复制 HTML 到剪贴板（富文本 + 纯文本双格式）
+   * 通用 CSS 样式（用于 HTML/PDF 导出）
+   */
+  const DOC_STYLES = `
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; max-width: 800px; margin: 40px auto; padding: 0 20px; color: #1f2329; line-height: 1.8; }
+    h1 { font-size: 28px; margin: 0 0 24px; border-bottom: 2px solid #e8e8e8; padding-bottom: 12px; }
+    h2 { font-size: 24px; margin: 28px 0 16px; }
+    h3 { font-size: 20px; margin: 24px 0 12px; }
+    h4 { font-size: 18px; margin: 20px 0 10px; }
+    h5 { font-size: 16px; margin: 16px 0 8px; }
+    p { margin: 0 0 12px; }
+    pre { background: #f6f8fa; border-radius: 6px; padding: 16px; overflow-x: auto; margin: 0 0 16px; }
+    code { font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace; font-size: 14px; }
+    p code, li code { background: #f0f0f0; padding: 2px 6px; border-radius: 3px; }
+    blockquote { border-left: 4px solid #ddd; margin: 0 0 16px; padding: 8px 16px; color: #666; }
+    table { width: 100%; border-collapse: collapse; margin: 0 0 16px; }
+    td, th { border: 1px solid #ddd; padding: 8px 12px; text-align: left; }
+    tr:nth-child(even) { background: #fafafa; }
+    hr { border: none; border-top: 1px solid #e8e8e8; margin: 24px 0; }
+    img { max-width: 100%; height: auto; margin: 8px 0; }
+    figure { margin: 16px 0; text-align: center; }
+    figcaption { font-size: 13px; color: #8f959e; margin-top: 8px; }
+    ul, ol { padding-left: 24px; margin: 0 0 12px; }
+    li { margin: 4px 0; }
+    a { color: #3370ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+  `;
+
+  /**
+   * 包装为完整 HTML 文档
+   */
+  function wrapHtmlDocument(bodyHtml, title, forMigration = false) {
+    return `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${escapeHTML(title)}</title>
+  <style>${DOC_STYLES}</style>
+</head>
+<body>
+${bodyHtml}
+</body>
+</html>`;
+  }
+
+  /**
+   * 包装为 Word 兼容 HTML 文档
+   */
+  function wrapWordDocument(bodyHtml, title) {
+    return `<html xmlns:o="urn:schemas-microsoft-com:office:office"
+  xmlns:w="urn:schemas-microsoft-com:office:word"
+  xmlns="http://www.w3.org/TR/REC-html40">
+<head>
+  <meta charset="UTF-8">
+  <title>${escapeHTML(title)}</title>
+  <!--[if gte mso 9]>
+  <xml>
+    <w:WordDocument>
+      <w:View>Print</w:View>
+      <w:Zoom>100</w:Zoom>
+    </w:WordDocument>
+  </xml>
+  <![endif]-->
+  <style>
+    ${DOC_STYLES}
+    @page { size: A4; margin: 2cm; }
+  </style>
+</head>
+<body>
+${bodyHtml}
+</body>
+</html>`;
+  }
+
+  // ========== 通用工具 ==========
+
+  /**
+   * 复制 HTML 到剪贴板
    */
   async function copyHTMLToClipboard(html, title) {
     const plainText = html.replace(/<[^>]+>/g, '');
@@ -541,11 +754,10 @@ window.FeishuCopy = window.FeishuCopy || {};
   }
 
   /**
-   * 使用 Blob 直接下载文件（content script 可用）
+   * 使用 Blob 直接下载文件
    */
-  function downloadBlob(content, filename, mimeType) {
-    const blob = new Blob([content], { type: mimeType });
-    const url = URL.createObjectURL(blob);
+  function downloadBlob(content, filename, mimeType, dataUrl) {
+    const url = dataUrl || URL.createObjectURL(new Blob([content], { type: mimeType }));
     const a = document.createElement('a');
     a.href = url;
     a.download = filename;
@@ -554,15 +766,16 @@ window.FeishuCopy = window.FeishuCopy || {};
     a.click();
     setTimeout(() => {
       document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      if (!dataUrl) URL.revokeObjectURL(url);
     }, 100);
   }
 
-  // 监听来自 popup 的手动触发消息
+  // ========== 消息监听 ==========
+
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.type === 'MANUAL_EXTRACT') {
       handleAction(message.action)
-        .then(result => sendResponse({ success: true, ...result }))
+        .then(() => sendResponse({ success: true }))
         .catch(err => sendResponse({ success: false, error: err.message }));
       return true;
     }

@@ -34,6 +34,12 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         .catch(err => sendResponse({ success: false, error: err.message }));
       return true;
 
+    case 'EXPORT_ATTACHMENTS':
+      handleExportAttachments(data)
+        .then(result => sendResponse({ success: true, ...result }))
+        .catch(err => sendResponse({ success: false, error: err.message }));
+      return true;
+
     case 'TEST_CONNECTION':
       testConnection(data)
         .then(result => sendResponse({ success: true, ...result }))
@@ -333,4 +339,53 @@ async function testConnection(data) {
   const api = new FeishuAPI(data.app_id, data.app_secret);
   const token = await api.getToken();
   return { token: token ? 'ok' : 'failed' };
+}
+
+/**
+ * 批量导出附件（图片/图表）
+ */
+async function handleExportAttachments(data) {
+  const { attachments, title } = data;
+  if (!attachments || attachments.length === 0) {
+    return { count: 0 };
+  }
+
+  const folder = `${title || 'feishu-doc'}_附件`;
+  let downloaded = 0;
+
+  for (let i = 0; i < attachments.length; i++) {
+    const att = attachments[i];
+    try {
+      const url = att.url;
+      const filename = `${folder}/${att.filename}`;
+
+      // base64 data URL 直接下载
+      if (url.startsWith('data:')) {
+        await chrome.downloads.download({
+          url,
+          filename,
+          saveAs: false,
+          conflictAction: 'uniquify'
+        });
+      } else {
+        // 普通 URL
+        await chrome.downloads.download({
+          url,
+          filename,
+          saveAs: false,
+          conflictAction: 'uniquify'
+        });
+      }
+      downloaded++;
+
+      // 控制下载速率，避免被限制
+      if (i < attachments.length - 1) {
+        await new Promise(r => setTimeout(r, 200));
+      }
+    } catch (e) {
+      console.warn('[Background] 附件下载失败:', att.filename, e.message);
+    }
+  }
+
+  return { count: downloaded };
 }
