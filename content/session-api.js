@@ -14,10 +14,18 @@ window.FeishuCopy.SessionAPI = {
     return !!this._getCsrfToken();
   },
 
-  _headers() {
+  _headers(extra) {
     return {
       'Content-Type': 'application/json',
+      'Accept': 'application/json, text/plain, */*',
       'x-csrftoken': this._getCsrfToken(),
+      'x-lsc-bizid': '2',
+      'x-lsc-terminal': 'web',
+      'x-lsc-version': '1',
+      'doc-biz': 'Lark',
+      'doc-os': 'mac',
+      'doc-platform': 'web',
+      ...extra
     };
   },
 
@@ -25,7 +33,7 @@ window.FeishuCopy.SessionAPI = {
     const url = path.startsWith('http') ? path : `https://${location.host}${path}`;
     const resp = await fetch(url, {
       ...options,
-      headers: { ...this._headers(), ...(options.headers || {}) },
+      headers: { ...this._headers(options.extraHeaders), ...(options.headers || {}) },
       credentials: 'include'
     });
     if (!resp.ok) {
@@ -36,121 +44,66 @@ window.FeishuCopy.SessionAPI = {
   },
 
   /**
-   * 尝试多个端点，返回第一个成功且有数据的结果
-   */
-  async _tryEndpoints(endpoints, label) {
-    for (const ep of endpoints) {
-      try {
-        const opts = ep.body
-          ? { method: 'POST', body: JSON.stringify(ep.body) }
-          : {};
-        const data = await this._fetch(ep.path, opts);
-        console.log('[SessionAPI]', label, ep.path, '→', JSON.stringify(data).substring(0, 500));
-        const folders = this._extractFolders(data);
-        if (folders.length > 0) return folders;
-        // 即使 folders 为空也检查原始响应结构
-        console.log('[SessionAPI]', label, 'extracted 0 folders, raw keys:', data ? Object.keys(data) : 'null',
-          'data keys:', data?.data ? Object.keys(data.data) : 'no data');
-      } catch (e) {
-        console.warn('[SessionAPI]', label, ep.path, '失败:', e.message);
-      }
-    }
-    return null;
-  },
-
-  /**
-   * 获取根目录文件夹列表
+   * 获取根目录文件/文件夹列表
    */
   async getRootFolders() {
-    // POST 端点
-    const postEndpoints = [
-      { path: '/drive/api/v1/files', body: { type: 'folder', page_size: 100 } },
-      { path: '/drive/api/v1/entry/list', body: { type: 'folder', page_size: 100, order_by: 'EditedTime' } },
-      { path: '/drive/api/v1/explore', body: { method: 'listFolder', page_size: 100 } },
-      { path: '/drive/api/v1/box/list', body: { type: 'folder', page_size: 100 } },
-      { path: '/drive/mina/api/v1/entry/list', body: { type: 'folder', page_size: 100 } },
-      { path: '/space/api/box/folder/list/', body: { type: 'folder', page_size: 100 } },
-      { path: '/space/api/v1/nodes', body: { type: 'folder', page_size: 100 } },
-      { path: '/drive/explorer/v1/root/', body: { method: 'list' } },
-      { path: '/suite/ops/api/drive/explorer/my_space', body: {} },
-    ];
-
-    let result = await this._tryEndpoints(postEndpoints, 'getRootFolders');
-    if (result) return result;
-
-    // GET 降级
-    const getEndpoints = [
-      { path: '/drive/api/v1/files?type=folder&page_size=100' },
-      { path: '/drive/api/v1/files/root/children?type=folder' },
-      { path: '/space/api/box/folder/root/list/' },
-    ];
-
-    for (const ep of getEndpoints) {
-      try {
-        const data = await this._fetch(ep.path);
-        console.log('[SessionAPI] getRootFolders GET', ep.path, '→', JSON.stringify(data).substring(0, 500));
-        const folders = this._extractFolders(data);
-        if (folders.length > 0) return folders;
-      } catch (e) {
-        console.warn('[SessionAPI] getRootFolders GET', ep.path, '失败:', e.message);
-      }
+    try {
+      const data = await this._fetch(
+        '/space/api/explorer/v3/my_space/obj/?asc=0&rank=3&length=100',
+        { extraHeaders: { 'referer': `https://${location.host}/drive/me/` } }
+      );
+      console.log('[SessionAPI] getRootFolders →', JSON.stringify(data).substring(0, 500));
+      return this._extractFromExplorer(data);
+    } catch (e) {
+      console.warn('[SessionAPI] getRootFolders 失败:', e.message);
+      return [];
     }
-
-    return [];
   },
 
   /**
-   * 列出指定文件夹下的子文件夹
+   * 列出指定文件夹下的子项
    */
   async listFolders(parentToken) {
     if (!parentToken) return this.getRootFolders();
 
-    const endpoints = [
-      { path: `/drive/api/v1/files/${parentToken}/children`, body: { type: 'folder', page_size: 100 } },
-      { path: '/drive/api/v1/entry/list', body: { folder_token: parentToken, type: 'folder', page_size: 100 } },
-      { path: `/drive/api/v1/explore`, body: { method: 'listFolder', folder_key: parentToken, page_size: 100 } },
-      { path: '/space/api/box/folder/list/', body: { token: parentToken, type: 'folder', page_size: 100 } },
-      { path: `/drive/explorer/v1/folder/${parentToken}/children`, body: { type: 'folder', page_size: 100 } },
-      { path: '/suite/ops/api/drive/explorer/list', body: { folder_token: parentToken, filter: 'folder' } },
-      { path: `/drive/mina/api/v1/entry/list`, body: { folder_token: parentToken, type: 'folder', page_size: 100 } },
-    ];
-
-    let result = await this._tryEndpoints(endpoints, `listFolders(${parentToken})`);
-    return result || [];
+    try {
+      const data = await this._fetch(
+        `/space/api/explorer/v3/my_space/obj/?asc=0&rank=3&length=100&parent_token=${encodeURIComponent(parentToken)}`,
+        { extraHeaders: { 'referer': `https://${location.host}/drive/me/` } }
+      );
+      console.log('[SessionAPI] listFolders →', JSON.stringify(data).substring(0, 500));
+      return this._extractFromExplorer(data);
+    } catch (e) {
+      console.warn('[SessionAPI] listFolders 失败:', e.message);
+      return [];
+    }
   },
 
   /**
-   * 从 API 响应中提取文件夹列表
+   * 从 explorer v3 接口响应中提取文件夹列表
    */
-  _extractFolders(data) {
+  _extractFromExplorer(data) {
     if (!data) return [];
+
+    // explorer v3 返回结构: data.data.nodes[] 或 data.data[]
     const candidates = [
-      data?.data?.children,
-      data?.data?.folders,
-      data?.data?.items,
       data?.data?.nodes,
       data?.data?.list,
-      data?.data?.entries,
-      data?.data?.files,
-      data?.data?.entities,
-      data?.children,
-      data?.folders,
-      data?.items,
-      data?.entries,
-      data?.files,
+      data?.data?.children,
+      data?.data?.items,
+      data?.data,
     ];
 
     for (const list of candidates) {
       if (!Array.isArray(list) || list.length === 0) continue;
+
       return list
         .filter(item => {
-          const type = (item.type || item.obj_type || item.file_type || item.doc_type || '').toLowerCase();
           const name = item.name || item.title || '';
-          // 只要有名字就保留（有些不返回 type 字段）
           if (!name) return false;
-          if (type && type !== 'folder' && type !== 'docx_folder' && type !== 'proj_folder'
-            && type !== 'sheet' && type !== 'bitable' && type !== 'doc') {
-            // 明确非文件夹类型则过滤
+          // 过滤：只要文件夹类型
+          const type = (item.type || item.obj_type || item.file_type || item.doc_type || '').toLowerCase();
+          if (type && type !== 'folder' && type !== 'docx_folder' && type !== 'proj_folder') {
             return false;
           }
           return true;
